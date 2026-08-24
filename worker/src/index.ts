@@ -323,6 +323,33 @@ export default { async fetch(request: Request, env: Env): Promise<Response> {
     }
     return json({ error: 'Not found' }, 404)
   }
+  if (request.method === 'GET' && url.pathname === '/sitemap.xml') {
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    const today = new Date().toISOString().slice(0, 10)
+    const staticPaths = ['', '/trending', '/albums', '/categories', '/about', '/terms', '/privacy', '/contact']
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for (const p of staticPaths) xml += `  <url><loc>https://nutinbutheat.com${esc(p)}</loc><lastmod>${today}</lastmod><changefreq>${p === '' ? 'hourly' : 'weekly'}</changefreq><priority>${p === '' ? '1.0' : '0.7'}</priority></url>\n`
+    try {
+      const posts = await listAllDocs(env, env.APPWRITE_POSTS_COLLECTION_ID, [{ method: 'equal', attribute: 'status', values: ['public'] }, { method: 'orderDesc', attribute: 'created_at' }], 5000).catch(() => [] as Array<Record<string, unknown>>)
+      for (const p of posts) {
+        const slug = String((p as Record<string, unknown>).slug ?? ''); if (!slug) continue
+        const lastmod = String((p as Record<string, unknown>).created_at ?? '').slice(0, 10) || today
+        xml += `  <url><loc>https://nutinbutheat.com/${encodeURIComponent(slug)}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>\n`
+      }
+    } catch { /* skip dynamic section on failure */ }
+    try {
+      const albums = await listAllDocs(env, env.APPWRITE_ALBUMS_COLLECTION_ID, [{ method: 'orderDesc', attribute: 'created_at' }], 5000).catch(() => [] as Array<Record<string, unknown>>)
+      const isPremium = (v: unknown) => v === 'yes' || v === true || v === 1 || String(v).toLowerCase() === 'yes' || String(v) === '1'
+      for (const a of albums) {
+        if (isPremium((a as Record<string, unknown>).is_premium)) continue
+        const slug = String((a as Record<string, unknown>).slug ?? ''); if (!slug) continue
+        const lastmod = String((a as Record<string, unknown>).created_at ?? '').slice(0, 10) || today
+        xml += `  <url><loc>https://nutinbutheat.com/a/${encodeURIComponent(slug)}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>\n`
+      }
+    } catch { /* skip dynamic section on failure */ }
+    xml += '</urlset>'
+    return new Response(xml, { headers: { 'Content-Type': 'application/xml;charset=UTF-8', 'Cache-Control': 'public, max-age=3600' } })
+  }
   if (request.method === 'GET' || request.method === 'HEAD') {
     const isAssetFile = /\.(js|css|png|jpe?g|webp|gif|svg|ico|txt|json|xml|woff2?|ttf|mp4|webm)$/i.test(url.pathname)
     const accept = request.headers.get('Accept') ?? ''
