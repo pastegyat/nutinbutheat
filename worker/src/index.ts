@@ -80,16 +80,37 @@ async function listAllDocs(env: Env, collectionId: string, queries: Array<Record
 }
 
 const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const inflight = new Map<string, Promise<Response>>()
+const evRates = new Map<string, { n: number; t: number }>()
+const BOT_RE = /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|telegram|preview|python-requests|curl\/|wget|headless/i
 async function cachedJson(ctx: ExecutionContext | undefined, cacheKey: string, ttl: number, build: () => Promise<Response>): Promise<Response> {
-  try {
-    const cache = caches.default
-    const req = new Request(cacheKey)
-    const hit = await cache.match(req)
-    if (hit) return hit
-    const res = await build()
-    if (ctx) ctx.waitUntil(cache.put(req, res.clone()))
-    return res
-  } catch { return build() }
+  const cache = caches.default
+  const req = new Request(cacheKey)
+  const hit = await cache.match(req)
+  if (hit) { const r = new Response(hit.body, hit); r.headers.set('X-Cache', 'HIT'); return r }
+  const existing = inflight.get(cacheKey)
+  if (existing) { const r = await existing; const out = new Response(r.body, r); out.headers.set('X-Cache', 'COALESCED'); return out }
+  const p = (async () => {
+    let fresh: Response
+    try { fresh = await build() }
+    catch {
+      const stale = await cache.match(req.url + ':stale')
+      if (stale) { const r = new Response(stale.body, stale); r.headers.set('X-Cache', 'STALE'); return r }
+      throw new Error('upstream failed')
+    }
+    const ok = new Response(fresh.body, fresh)
+    ok.headers.set('X-Cache', 'MISS')
+    ok.headers.set('Cache-Control', `public, max-age=${ttl}`)
+    if (ctx) {
+      ctx.waitUntil(cache.put(req, ok.clone()))
+      const staleRes = new Response(ok.clone().body, ok)
+      staleRes.headers.set('Cache-Control', 'public, max-age=86400')
+      ctx.waitUntil(cache.put(new Request(req.url + ':stale'), staleRes))
+    }
+    return ok
+  })()
+  inflight.set(cacheKey, p)
+  try { return await p } finally { inflight.delete(cacheKey) }
 }
 function replaceMeta(html: string, key: string, value: string) {
   const attr = key.startsWith('twitter') ? 'name' : 'property'
@@ -148,6 +169,7 @@ export default { async fetch(request: Request, env: Env, ctx: ExecutionContext):
   if (request.method === 'OPTIONS') return new Response(null, { headers: cors })
   const url = new URL(request.url)
   if (request.method === 'POST' && url.pathname === '/track') {
+    if (BOT_RE.test(request.headers.get('User-Agent') ?? '')) return json({ ok: true, skipped: true })
     const body = await request.json() as { path?: string; search?: string; id?: string; duration_ms?: number }
     const base = `/databases/${env.APPWRITE_DATABASE_ID}/collections/${env.APPWRITE_ANALYTICS_COLLECTION_ID}/documents`
     if (typeof body.id === 'string' && body.id) {
@@ -167,8 +189,8 @@ export default { async fetch(request: Request, env: Env, ctx: ExecutionContext):
     return json({ ok: true, id: doc.$id ?? null })
   }
   if (request.method === 'GET' && url.pathname === '/reactions/all') {
-    return cachedJson(ctx, 'https://cache.local/reactions/all', 30, async () => {
-      const docs = await listAllDocs(env, env.APPWRITE_REACTIONS_COLLECTION_ID, [], 20000).catch(() => [] as Array<Record<string, unknown>>)
+    return cachedJson(ctx, 'https://cache.local/reactions/all', 60, async () => {
+      const docs = await listAllDocs(env, env.APPWRITE_REACTIONS_COLLECTION_ID, [], 20000)
       const map: Record<string, { likes: number; dislikes: number }> = {}
       for (const d of docs) {
         const pid = String((d as Record<string, unknown>).post_id ?? ''); if (!pid) continue
@@ -180,16 +202,17 @@ export default { async fetch(request: Request, env: Env, ctx: ExecutionContext):
     })
   }
   if (request.method === 'GET' && url.pathname === '/posts/all') {
-    return cachedJson(ctx, 'https://cache.local/posts/all', 60, async () => {
-      const posts = await listAllDocs(env, env.APPWRITE_POSTS_COLLECTION_ID, [{ method: 'equal', attribute: 'status', values: ['public'] }, { method: 'orderDesc', attribute: 'created_at' }], 5000).catch(() => [] as Array<Record<string, unknown>>)
+    return cachedJson(ctx, 'https://cache.local/posts/all', 600, async () => {
+      const posts = await listAllDocs(env, env.APPWRITE_POSTS_COLLECTION_ID, [{ method: 'equal', attribute: 'status', values: ['public'] }, { method: 'orderDesc', attribute: 'created_at' }], 5000)
       const trimmed = posts.map(p => ({ $id: String((p as Record<string, unknown>).$id ?? ''), title: String((p as Record<string, unknown>).title ?? ''), slug: String((p as Record<string, unknown>).slug ?? ''), description: String((p as Record<string, unknown>).description ?? ''), image_url: String((p as Record<string, unknown>).image_url ?? ''), category: String((p as Record<string, unknown>).category ?? ''), is_premium: (p as Record<string, unknown>).is_premium ?? 'no', status: String((p as Record<string, unknown>).status ?? 'public'), views: Number((p as Record<string, unknown>).views ?? 0) || 0, link_clicks: Number((p as Record<string, unknown>).link_clicks ?? 0) || 0, created_at: String((p as Record<string, unknown>).created_at ?? '') }))
-      return new Response(JSON.stringify({ posts: trimmed }), { headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' } })
+      return new Response(JSON.stringify({ posts: trimmed }), { headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json' } })
     })
   }
   if (request.method === 'GET' && url.pathname === '/albums') {
     const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1)
     const per = Math.min(100, Math.max(1, parseInt(url.searchParams.get('per') ?? '20', 10) || 20))
     const q = (url.searchParams.get('q') ?? '').trim()
+    return cachedJson(ctx, `https://cache.local/albums?p=${page}&per=${per}&q=${encodeURIComponent(q)}`, 120, async () => {
     const albumsCol = env.APPWRITE_ALBUMS_COLLECTION_ID; const itemsCol = env.APPWRITE_ALBUM_ITEMS_COLLECTION_ID
     try {
       let total = 0; let pageAlbums: Array<Record<string, unknown>> = []
@@ -215,6 +238,7 @@ export default { async fetch(request: Request, env: Env, ctx: ExecutionContext):
       })
       return json({ total, page, per, albums: enriched, q })
     } catch (e) { if (String(e).includes('404') || String(e).includes('not found')) return json({ total: 0, page, per, albums: [] }) ; throw e }
+    })
   }
   if (request.method === 'GET' && url.pathname.startsWith('/albums/')) {
     const slug = decodeURIComponent(url.pathname.slice('/albums/'.length).replace(/^\/+|\/+$/g, ''))
@@ -539,9 +563,10 @@ export default { async fetch(request: Request, env: Env, ctx: ExecutionContext):
   }
   if (request.method === 'POST' && url.pathname === '/admin/stats') {
     const admin = await isAdmin(request, env); if (!admin.ok) return json({ error: admin.reason ?? 'Unauthorized' }, 401)
+    return cachedJson(ctx, 'https://cache.local/admin-stats', 60, async () => {
     const postsCol = `/databases/${env.APPWRITE_DATABASE_ID}/collections/${env.APPWRITE_POSTS_COLLECTION_ID}/documents`
     const posts = await appwrite(env, `${postsCol}?queries[]=${encodeURIComponent(JSON.stringify({ method: 'limit', values: [5000] }))}&queries[]=${encodeURIComponent(JSON.stringify({ method: 'orderDesc', attribute: 'created_at' }))}`)
-    if (!posts.ok) return json({ error: `Stats read failed (${posts.status}).` }, 502)
+    if (!posts.ok) throw new Error(`stats ${posts.status}`)
     const postsJson = await posts.json() as { total: number; documents: Array<{ title: string; slug: string; status: string; views: number | null; link_clicks: number | null; created_at: string }> }
     const docs = postsJson.documents ?? []
     const topClicked = [...docs].sort((a, b) => (Number(b.link_clicks) || 0) - (Number(a.link_clicks) || 0)).slice(0, 8).map(({ title, link_clicks, slug }) => ({ title, link_clicks: Number(link_clicks) || 0, slug }))
@@ -567,9 +592,14 @@ const rawDur = row.duration_ms; if (path && typeof rawDur === 'number' && Number
     const topPages = [...pages.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([path, visits]) => { const acc = durations.get(path); return { path, visits, avgDuration: acc && acc.count ? Math.round(acc.total / acc.count) : null } })
     const topSearches = [...searches.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([term, count]) => ({ term, count }))
     return json({ totals, recentPosts: docs.slice(0, 5).map(({ title, views, link_clicks, created_at }) => ({ title, views: Number(views) || 0, link_clicks: Number(link_clicks) || 0, created_at })), topClicked, traffic, todayViews, topPages, topSearches })
+    })
   }
   if (request.method === 'POST' && url.pathname === '/events') {
+    if (BOT_RE.test(request.headers.get('User-Agent') ?? '')) return json({ ok: true, skipped: true })
     const { postId, event } = await request.json() as { postId?: string; event?: 'view' | 'link_click' }; if (!postId || !['view', 'link_click'].includes(event ?? '')) return json({ error: 'Invalid event.' }, 400)
+    const evIp = request.headers.get('CF-Connecting-IP') ?? 'unknown'
+    const nowT = Date.now(); const rec = evRates.get(evIp) ?? { n: 0, t: nowT }; if (nowT - rec.t > 60000) { rec.n = 0; rec.t = nowT }; rec.n++; evRates.set(evIp, rec)
+    if (rec.n > 90) return json({ ok: true, limited: true })
     const visitor = await hash(request.headers.get('CF-Connecting-IP') ?? 'unknown', env.IP_HASH_SECRET); const eventId = (await hash(`${postId}:${visitor}:${event}`, env.IP_HASH_SECRET)).slice(0, 36)
     const created = await appwrite(env, `/databases/${env.APPWRITE_DATABASE_ID}/collections/${env.APPWRITE_POST_EVENTS_COLLECTION_ID}/documents`, { method: 'POST', body: JSON.stringify({ documentId: eventId, data: { post_id: postId, visitor_hash: visitor, event_type: event, created_at: new Date().toISOString() }, permissions: [] }) })
     const createdBody = await created.text()
