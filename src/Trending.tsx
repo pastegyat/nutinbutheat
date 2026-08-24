@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import './Home.css'
 import './Trending.css'
 import type { Post } from './types/post'
-import { fetchReactionCounts, getPublicPosts, trackPostEvent } from './lib/appwrite'
+import { getReactionCountsAll, getPublicPosts, trackPostEvent } from './lib/appwrite'
 import { timeAgo } from './lib/format'
 import { linkTo } from './lib/router'
 
@@ -26,13 +26,10 @@ export default function Trending() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const list = await getPublicPosts()
+      const [list, countsAll] = await Promise.all([getPublicPosts(), getReactionCountsAll()])
       if (cancelled) return
-      const totals = await Promise.all(list.map(async p => [p.$id, await fetchReactionCounts(p.$id)] as const))
-      if (cancelled) return
-      const map = Object.fromEntries(totals) as Record<string, { likes: number; dislikes: number }>
-      const scored: ScoredPost[] = list.map(p => {
-        const c = map[p.$id] ?? { likes: 0, dislikes: 0 }
+      const scored: ScoredPost[] = list.map((p: Post) => {
+        const c = countsAll[p.$id] ?? { likes: 0, dislikes: 0 }
         const views = Number(p.views) || 0
         const score = views + c.likes * 8 - c.dislikes * 2
         return { ...p, likes: c.likes, dislikes: c.dislikes, score }

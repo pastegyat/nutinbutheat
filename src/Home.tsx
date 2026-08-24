@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import './Home.css'
 import type { Post } from './types/post'
-import { fetchReactionCounts, getPublicPosts, toggleReaction, trackPageView, trackPostEvent, type ReactionCounts } from './lib/appwrite'
+import { getReactionCountsAll, getPublicPosts, toggleReaction, trackPageView, trackPostEvent, type ReactionCounts } from './lib/appwrite'
 import { timeAgo } from './lib/format'
 import { linkTo } from './lib/router'
 import { ThumbDown, ThumbUp } from './lib/icons'
@@ -32,7 +32,7 @@ export default function Home() {
     return () => { window.removeEventListener('popstate', sync); window.removeEventListener('nbh:navigate', sync) }
   }, [])
 
-  useEffect(() => { let cancelled = false; (async () => { const list = await getPublicPosts(); if (cancelled) return; setPosts(list); setLoading(false); const totals = await Promise.all(list.map(async post => [post.$id, await fetchReactionCounts(post.$id)] as const)); if (cancelled) return; setCounts(Object.fromEntries(totals)) })(); return () => { cancelled = true } }, [])
+  useEffect(() => { let cancelled = false; (async () => { const [list, countsAll] = await Promise.all([getPublicPosts(), getReactionCountsAll()]); if (cancelled) return; setPosts(list); setCounts(countsAll); setLoading(false) })(); return () => { cancelled = true } }, [])
   const filtered = useMemo(() => posts.filter(p => `${p.title} ${p.description}`.toLowerCase().includes(query.toLowerCase())), [posts, query])
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
   const visible = useMemo(() => filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE), [filtered, page])

@@ -3,7 +3,7 @@ import './PostDetail.css'
 import './SearchOverride.css'
 import './RelatedCardDescription.css'
 import type { Post } from './types/post'
-import { fetchReactionCounts, getPostBySlug, getPublicPosts, toggleReaction, trackPageView, trackPostEvent, type ReactionCounts } from './lib/appwrite'
+import { getReactionCountsAll, getPostBySlug, getPublicPosts, toggleReaction, trackPageView, trackPostEvent, type ReactionCounts } from './lib/appwrite'
 import { timeAgo } from './lib/format'
 import { linkTo } from './lib/router'
 import { ThumbDown, ThumbUp } from './lib/icons'
@@ -27,7 +27,7 @@ export default function PostDetail({ slug = '' }: { slug?: string }) {
   const [vote, setVote] = useState<'like' | 'dislike' | undefined>(); const [reportOpen, setReportOpen] = useState(false); const [sent, setSent] = useState(false); const [copied, setCopied] = useState(false); const [menu, setMenu] = useState(false); const [query, setQuery] = useState('')
   const [rvotes, setRVotes] = useState<Record<string, 'like' | 'dislike' | undefined>>({}); const [copiedId, setCopiedId] = useState<string | null>(null)
   const gridRef = useRef<HTMLDivElement>(null); const firedViews = useRef<Set<string>>(new Set())
-  useEffect(() => { let cancelled = false; (async () => { const found = slug ? await getPostBySlug(slug) : null; if (cancelled) return; setPost(found); const list = await getPublicPosts(); if (cancelled) return; setPosts(list); if (found) {
+  useEffect(() => { let cancelled = false; (async () => { const found = slug ? await getPostBySlug(slug) : null; if (cancelled) return; setPost(found); const [list, countsAll] = await Promise.all([getPublicPosts(), getReactionCountsAll()]); if (cancelled) return; setPosts(list); setCounts(countsAll); if (found) {
     document.title = `${found.title} - NutinButHeat`
     const setMeta = (key: string, content: string) => {
       let el = document.querySelector(`meta[${key.startsWith('twitter') ? 'name' : 'property'}="${key}"]`) as HTMLMetaElement | null
@@ -43,7 +43,7 @@ export default function PostDetail({ slug = '' }: { slug?: string }) {
     setMeta('twitter:title', found.title)
     setMeta('twitter:description', (found.description ?? '').slice(0, 160))
     if (found.image_url) setMeta('twitter:image', found.image_url)
-    trackPostEvent(found.$id, 'view'); const totals = await Promise.all(list.map(async item => [item.$id, await fetchReactionCounts(item.$id)] as const)); if (cancelled) return; setCounts(Object.fromEntries(totals)) } })(); return () => { cancelled = true } }, [slug])
+    trackPostEvent(found.$id, 'view') } })(); return () => { cancelled = true } }, [slug])
   const related = useMemo(() => posts.filter(item => item.$id !== post?.$id), [posts, post])
   const [relatedCount, setRelatedCount] = useState(5)
   useEffect(() => { const t = setTimeout(() => setRelatedCount(5), 0); return () => clearTimeout(t) }, [slug])

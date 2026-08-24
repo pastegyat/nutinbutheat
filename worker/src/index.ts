@@ -80,6 +80,17 @@ async function listAllDocs(env: Env, collectionId: string, queries: Array<Record
 }
 
 const escHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+async function cachedJson(ctx: ExecutionContext | undefined, cacheKey: string, ttl: number, build: () => Promise<Response>): Promise<Response> {
+  try {
+    const cache = caches.default
+    const req = new Request(cacheKey)
+    const hit = await cache.match(req)
+    if (hit) return hit
+    const res = await build()
+    if (ctx) ctx.waitUntil(cache.put(req, res.clone()))
+    return res
+  } catch { return build() }
+}
 function replaceMeta(html: string, key: string, value: string) {
   const attr = key.startsWith('twitter') ? 'name' : 'property'
   const re = new RegExp(`(<meta[^>]*${attr}="${key}"[^>]*content=")[^"]*(")`, 'i')
@@ -88,7 +99,7 @@ function replaceMeta(html: string, key: string, value: string) {
 }
 async function buildCrawlerHtml(request: Request, url: URL, env: Env): Promise<string | null> {
   const path = url.pathname.replace(/^\/+|\/+$/g, '')
-  let title = ''; let description = ''; let image = ''; let canonical = ''
+  let title: string; let description: string; let image: string; let canonical: string
   if (path.startsWith('a/')) {
     const slug = decodeURIComponent(path.slice(2))
     if (!slug) return null
@@ -130,7 +141,7 @@ async function buildCrawlerHtml(request: Request, url: URL, env: Env): Promise<s
   return html
 }
 
-export default { async fetch(request: Request, env: Env): Promise<Response> {
+export default { async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   try {
   const cors = corsHeaders(request.headers.get('Origin'))
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
@@ -154,6 +165,26 @@ export default { async fetch(request: Request, env: Env): Promise<Response> {
     if (!created.ok) return json({ error: 'Could not record pageview.' }, 502)
     const doc = await created.json() as { $id?: string }
     return json({ ok: true, id: doc.$id ?? null })
+  }
+  if (request.method === 'GET' && url.pathname === '/reactions/all') {
+    return cachedJson(ctx, 'https://cache.local/reactions/all', 30, async () => {
+      const docs = await listAllDocs(env, env.APPWRITE_REACTIONS_COLLECTION_ID, [], 20000).catch(() => [] as Array<Record<string, unknown>>)
+      const map: Record<string, { likes: number; dislikes: number }> = {}
+      for (const d of docs) {
+        const pid = String((d as Record<string, unknown>).post_id ?? ''); if (!pid) continue
+        map[pid] ??= { likes: 0, dislikes: 0 }
+        const t = String((d as Record<string, unknown>).type ?? '')
+        if (t === 'like') map[pid].likes += 1; else if (t === 'dislike') map[pid].dislikes += 1
+      }
+      return new Response(JSON.stringify(map), { headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=30' } })
+    })
+  }
+  if (request.method === 'GET' && url.pathname === '/posts/all') {
+    return cachedJson(ctx, 'https://cache.local/posts/all', 60, async () => {
+      const posts = await listAllDocs(env, env.APPWRITE_POSTS_COLLECTION_ID, [{ method: 'equal', attribute: 'status', values: ['public'] }, { method: 'orderDesc', attribute: 'created_at' }], 5000).catch(() => [] as Array<Record<string, unknown>>)
+      const trimmed = posts.map(p => ({ $id: String((p as Record<string, unknown>).$id ?? ''), title: String((p as Record<string, unknown>).title ?? ''), slug: String((p as Record<string, unknown>).slug ?? ''), description: String((p as Record<string, unknown>).description ?? ''), image_url: String((p as Record<string, unknown>).image_url ?? ''), category: String((p as Record<string, unknown>).category ?? ''), is_premium: (p as Record<string, unknown>).is_premium ?? 'no', status: String((p as Record<string, unknown>).status ?? 'public'), views: Number((p as Record<string, unknown>).views ?? 0) || 0, link_clicks: Number((p as Record<string, unknown>).link_clicks ?? 0) || 0, created_at: String((p as Record<string, unknown>).created_at ?? '') }))
+      return new Response(JSON.stringify({ posts: trimmed }), { headers: { ...corsHeaders(request.headers.get('Origin')), 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' } })
+    })
   }
   if (request.method === 'GET' && url.pathname === '/albums') {
     const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1)
