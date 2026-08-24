@@ -2,6 +2,12 @@ name = "nutinbutheat-api"
 main = "src/index.ts"
 compatibility_date = "2026-08-18"
 
+routes = [
+  { pattern = "nutinbutheat.com", custom_domain = true },
+  { pattern = "www.nutinbutheat.com", custom_domain = true }
+]
+workers_dev = true
+
 [[r2_buckets]]
 binding = "POST_IMAGES"
 bucket_name = "store"
