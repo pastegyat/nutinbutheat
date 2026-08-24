@@ -1,0 +1,15 @@
+import { useState } from 'react'
+import type { FormEvent } from 'react'
+import '../AdminPortal.css'
+import { getAdminToken } from './auth'
+
+const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+
+export type EditablePost = { $id: string; title: string; slug: string; description: string; category: string; is_premium: string; status: string; image_url: string }
+
+export default function PostForm({ initial, onAuthError, onSaved, onCancel }: { initial?: EditablePost; onAuthError: () => void; onSaved?: () => void; onCancel?: () => void }) {
+  const editing = !!initial
+  const [title, setTitle] = useState(initial?.title ?? ''); const [slug, setSlug] = useState(initial?.slug ?? ''); const [message, setMessage] = useState(''); const [saving, setSaving] = useState(false)
+  async function submit(e: FormEvent<HTMLFormElement>) { e.preventDefault(); const form = e.currentTarget; setSaving(true); setMessage(''); try { const apiUrl = import.meta.env.VITE_APPWRITE_API_URL; const url = initial ? `${apiUrl}/admin/posts/${initial.$id}` : `${apiUrl}/admin/posts`; const response = await fetch(url, { method: initial ? 'PATCH' : 'POST', headers: { 'X-Admin-Token': getAdminToken() }, body: new FormData(form) }); if (!response.ok) { if (response.status === 401) { onAuthError(); return } let detail = `HTTP ${response.status}`; try { const body = await response.json(); if (body?.error) detail += ` — ${body.error}` } catch { /* not JSON */ } throw new Error(detail) } setMessage(editing ? 'Post updated.' : 'Post saved.'); form.reset(); setTitle(''); setSlug(''); onSaved?.() } catch (err) { setMessage(`Could not save. ${err instanceof Error ? err.message : 'Check your Worker configuration.'}`) } finally { setSaving(false) } }
+  return <form onSubmit={submit}><label>Title<input name="title" value={title} required onChange={e => { setTitle(e.target.value); if (!editing) setSlug(slugify(e.target.value)) }} /></label><label>Slug<input name="slug" value={slug} required onChange={e => setSlug(slugify(e.target.value))} /></label><label>Description<textarea name="description" defaultValue={initial?.description ?? ''} required /></label><div><label>Category<input name="category" defaultValue={initial?.category ?? ''} required /></label><label>Image<input name="image" type="file" accept="image/*" {...(editing ? {} : { required: true })} />{editing && <small>Leave empty to keep the current image.</small>}</label></div><div><label>Premium<select name="is_premium" defaultValue={initial?.is_premium ?? 'no'}><option value="no">No — Free</option><option value="yes">Yes — Exclusive</option></select></label><label>Status<select name="status" defaultValue={initial?.status ?? 'private'}><option value="private">Private</option><option value="public">Public</option></select></label></div>{message && <output>{message}</output>}<button disabled={saving}>{saving ? 'Saving…' : editing ? 'Update post' : 'Save post'}</button>{editing && onCancel && <button type="button" className="cancel-btn" onClick={onCancel}>Cancel editing</button>}</form>
+}
