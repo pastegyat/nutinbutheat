@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /nadmin
+
+User-agent: GPTBot
+Allow: /
+Disallow: /nadmin
+
+User-agent: CCBot
+Allow: /
+Disallow: /nadmin
+
+Sitemap: https://nutinbutheat.com/sitemap.xml
