@@ -37,14 +37,20 @@ export default function AlbumDetail({ slug }: { slug: string }) {
           el.content = content
         }
         const desc = (data.album.description ?? '').slice(0, 120)
+        setMeta('og:type', 'article')
         setMeta('og:title', data.album.title)
         setMeta('og:description', desc)
+        // Album preview: use album thumbnail (no separate preview derivative).
         if (data.album.thumbnail) setMeta('og:image', data.album.thumbnail)
+        setMeta('og:image:width', '1200')
+        setMeta('og:image:height', '630')
+        setMeta('og:image:alt', data.album.title)
         setMeta('og:url', `https://nutinbutheat.com/a/${data.album.slug}`)
         setMeta('twitter:card', 'summary_large_image')
         setMeta('twitter:title', data.album.title)
         setMeta('twitter:description', desc)
         if (data.album.thumbnail) setMeta('twitter:image', data.album.thumbnail)
+        setMeta('twitter:image:alt', data.album.title)
       }
     })()
     return () => { cancelled = true }

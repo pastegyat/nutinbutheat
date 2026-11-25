@@ -1,0 +1,10 @@
+.paste-block{background:#1a1f2e;border:1px solid #2a3441;border-radius:14px;overflow:hidden;max-width:760px;margin:0 auto}
+.paste-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:24px 24px 0}
+.paste-head h1{margin:0;font-size:clamp(22px,4vw,32px);line-height:1.1}
+.paste-head button{border:0;border-radius:8px;padding:9px 14px;background:#2a3441;color:#b8c5d6;font-size:13px;white-space:nowrap}
+.paste-head button:hover{background:#3a4451;color:#fff}
+.paste-head button.copied{background:#45a049;color:#fff}
+.paste-body{margin:18px 24px 24px;padding:16px;background:#0f1419;border:1px solid #2a3441;border-radius:10px;color:#d5dde8;font-family:'DM Mono',monospace;font-size:13.5px;line-height:1.7;white-space:pre-wrap;word-break:break-word;max-height:60vh;overflow:auto}
+.paste-body a{color:#58a6ff;text-decoration:underline}
+.paste-body a:hover{color:#79c0ff}
+@media(max-width:620px){.paste-head{padding:16px 16px 0}.paste-body{margin:14px 16px 16px;font-size:12.5px}}

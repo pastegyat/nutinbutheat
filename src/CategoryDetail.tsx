@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import './CategoryDetail.css'
+import './Home.css'
 import type { Post } from './types/post'
-import { fetchReactionCounts, getPublicPosts, toggleReaction, trackPageView, trackPostEvent } from './lib/appwrite'
+import { getReactionCountsAll, getPublicPosts, toggleReaction, trackPageView, trackPostEvent, clearReactionCountsCache } from './lib/appwrite'
 import { timeAgo } from './lib/format'
 import { linkTo } from './lib/router'
 
@@ -34,14 +35,11 @@ export default function CategoryDetail({ category }: { category: string }) {
     const t = setTimeout(() => {
       setLoading(true)
       ;(async () => {
-        const list = await getPublicPosts()
+        const [list, totals] = await Promise.all([getPublicPosts(), getReactionCountsAll()])
         if (cancelled) return
         const filtered = list.filter(p => (p.category ?? '') === category).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         if (cancelled) return
-        setPosts(filtered); setLoading(false)
-        const totals = await Promise.all(filtered.map(async p => [p.$id, await fetchReactionCounts(p.$id)] as const))
-        if (cancelled) return
-        setCounts(Object.fromEntries(totals))
+        setPosts(filtered); setCounts(totals); setLoading(false)
       })()
     }, 0)
     return () => { cancelled = true; clearTimeout(t) }
@@ -58,27 +56,14 @@ export default function CategoryDetail({ category }: { category: string }) {
   const vote = async (post: Post, type: 'like' | 'dislike') => {
     const current = votes[post.$id]
     const totals = await toggleReaction(post.$id, type)
+    clearReactionCountsCache()
     setCounts(c => ({ ...c, [post.$id]: totals }))
     setVotes(v => ({ ...v, [post.$id]: current === type ? undefined : type }))
   }
 
-  const submit = (e: React.FormEvent) => { e.preventDefault() }
 
   return <div className="category-page">
-    <header className="header">
-      <div className="header-container">
-        <div className="left-section">
-          <button className={`hamburger ${menu ? 'active' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><span /><span /><span /></button>
-          <a href="/" onClick={linkTo('/')} className="logo-link"><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a>
-        </div>
-        <div className="search-container">
-          <form onSubmit={submit} className="fs">
-            <input type="text" className="search-input" placeholder={`Search in ${category}...`} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} aria-label={`Search in ${category}`} />
-            <button type="submit" className="search-btn" aria-label="Search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg></button>
-          </form>
-        </div>
-      </div>
-    </header>
+    <header><div className="bar"><button className={`hamburger ${menu ? 'open' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><i /><i /><i /></button><a className="logo" href="/" onClick={linkTo('/')}><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a><label className="search"><input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={`Search in ${category}...`} aria-label={`Search in ${category}`} /><b>⌕</b></label></div></header>
 
     <div className={`slide-menu ${menu ? 'active' : ''}`}>
       <div className="menu-content">

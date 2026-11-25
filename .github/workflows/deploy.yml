@@ -24,4 +24,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
-          command: deploy
+          # --config pins worker/wrangler.toml: @cloudflare/vite-plugin writes
+          # .wrangler/deploy/config.json during `npm run build`, which would
+          # otherwise hijack `wrangler deploy` and publish the assets-only stub.
+          command: deploy --config wrangler.toml

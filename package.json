@@ -7,9 +7,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
     "@vitejs/plugin-react": "latest",
     "appwrite": "^26.2.0",
     "chart.js": "^4.5.1",
@@ -19,6 +21,7 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.62.4",
     "@eslint/js": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
@@ -28,7 +31,7 @@
     "globals": "latest",
     "tsx": "^4.23.12",
     "typescript-eslint": "latest",
-    "wrangler": "^4.124.0",
+    "wrangler": "^4.146.0",
     "xlsx": "^0.18.5"
   }
 }

@@ -41,14 +41,6 @@ export default function Trending() {
   }, [])
 
   const displayed = useMemo(() => posts.slice(0, visibleCount), [posts, visibleCount])
-  const gridRef = useRef<HTMLDivElement>(null); const firedViews = useRef<Set<string>>(new Set())
-  useEffect(() => {
-    const grid = gridRef.current; if (!grid) return
-    const seen = firedViews.current
-    const observer = new IntersectionObserver(entries => { for (const entry of entries) { if (entry.isIntersecting) { const id = (entry.target as HTMLElement).dataset.id; if (id && !seen.has(id)) { seen.add(id); trackPostEvent(id, 'view') } } } }, { threshold: 0 })
-    grid.querySelectorAll<HTMLElement>('[data-id]').forEach(el => observer.observe(el))
-    return () => observer.disconnect()
-  }, [displayed])
   const sentinelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (visibleCount >= posts.length) return
@@ -65,7 +57,7 @@ export default function Trending() {
       <section className="trending-intro"><p>Trending Now</p><h1>Most <em>Loved</em> Drops</h1><span>Ranked by likes + views — updated live.</span></section>
       <div className="rule" />
       <section className="feed">
-        {loading ? <p className="none">Loading trending…</p> : posts.length === 0 ? <p className="none">No posts yet.</p> : <><div className="grid trending-grid" ref={gridRef}>{displayed.map((post, idx) => (
+        {loading ? <p className="none">Loading trending…</p> : posts.length === 0 ? <p className="none">No posts yet.</p> : <><div className="grid trending-grid">{displayed.map((post, idx) => (
           <article className="card trending-card" key={post.$id} data-id={post.$id}>
             <div className="photo"><img src={post.image_url} alt={post.title} /><strong className={post.is_premium === 'yes' ? 'exclusive' : 'free'}>{post.is_premium === 'yes' ? '★ Exclusive' : '✓ Free'}</strong><span className="rank-badge">#{idx + 1}</span></div>
             <div className="copy trending-copy"><div><h2>{post.title}</h2><time>{timeAgo(post.created_at)}</time></div><p>{linkify(post.description, post.$id)}</p></div>

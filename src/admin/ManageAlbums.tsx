@@ -19,10 +19,17 @@ function xhrPut(url: string, file: Blob, onProgress: (pct: number) => void): Pro
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open('PUT', url)
+    // Direct-to-R2 presigned PUT: the Worker never sees these bytes, so
+    // multi-hundred-MB files upload fine. Both headers are CORS-allowed.
     xhr.setRequestHeader('Content-Type', (file as File).type || 'application/octet-stream')
-    xhr.upload.addEventListener('progress', e => { if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 100)) })
-    xhr.addEventListener('load', () => xhr.status === 200 || xhr.status === 204 ? resolve() : reject(new Error(`HTTP ${xhr.status}`)))
-    xhr.addEventListener('error', () => reject(new Error('Network error')))
+    xhr.setRequestHeader('x-amz-content-sha256', 'UNSIGNED-PAYLOAD')
+    xhr.upload.addEventListener('progress', e => { if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total) * 100) })
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200 || xhr.status === 204) return resolve()
+      if (xhr.status === 403) return reject(new Error('Upload rejected (403): presigned URL expired or R2 CORS/token misconfigured. Re-select the file and retry.'))
+      reject(new Error(`HTTP ${xhr.status}`))
+    })
+    xhr.addEventListener('error', () => reject(new Error('Network error — check R2 CORS, then retry.')))
     xhr.send(file)
   })
 }
@@ -224,7 +231,7 @@ export default function ManageAlbums({ onAuthError, onChanged }: { onAuthError: 
               {a.thumbnail ? <img src={a.thumbnail} alt="" className="album-thumb" /> : <div className="album-thumb-ph">🎬</div>}
               <div className="album-info">
                 <div className="album-title">{a.title}</div>
-                <div className="album-meta">{a.item_count ?? 0} items{(a.is_premium === 'yes' || String(a.is_premium) === '1') ? ' · ⭐ Premium' : ''}</div>
+                <div className="album-meta">{a.item_count ?? 0} items · 👁 {fmtNumber(a.view_count ?? 0)} views{(a.is_premium === 'yes' || String(a.is_premium) === '1') ? ' · ⭐ Premium' : ''}</div>
                 <div className="album-slug">/a/{a.slug}</div>
                 <div className="album-actions">
                   <a href={`/a/${encodeURIComponent(a.slug)}`} target="_blank" rel="noopener noreferrer" className="btn-sm btn-blue">🔗 View</a>

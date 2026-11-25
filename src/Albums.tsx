@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import './Albums.css'
+import AlbumCard from './AlbumCard'
 import { getAlbums } from './lib/appwrite'
-import { timeAgo } from './lib/format'
 import { linkTo } from './lib/router'
 import type { Album } from './types/album'
 
@@ -108,30 +108,9 @@ export default function Albums() {
         {loading ? <div className="no-results"><div className="no-results-icon">🎞</div><h2>Loading…</h2></div>
           : (
             <div className="albums-grid">
-              {albums.length ? albums.map(album => {
-                const cover = (album.cover || album.thumbnail || '') as string
-                const isPremium = album.is_premium === 'yes' || album.is_premium === true as unknown as string || String(album.is_premium) === '1'
-                return (
-                  <a key={album.$id} href={`/a/${encodeURIComponent(album.slug)}`} onClick={linkTo(`/a/${album.slug}`)} className="album-card">
-                    <div className="album-mosaic">
-                      {cover ? <img src={cover} className="mosaic-single" loading="lazy" alt="" /> : <div className="mosaic-placeholder">🎞</div>}
-                      {isPremium && <span className="prem-badge">★ Premium</span>}
-                      <div className="album-mosaic-overlay">
-                        {(album.video_count ?? 0) > 0 && <span className="count-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z" /></svg> {album.video_count}</span>}
-                        {(album.image_count ?? 0) > 0 && <span className="count-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg> {album.image_count}</span>}
-                      </div>
-                    </div>
-                    <div className="album-info">
-                      <div className="album-title">{album.title}</div>
-                      <div className="album-meta">
-                        <span className="meta-item">{album.item_count ?? 0} item{(album.item_count ?? 0) !== 1 ? 's' : ''}</span>
-                        <span className="meta-dot">•</span>
-                        <span className="meta-item">{timeAgo(album.created_at)}</span>
-                      </div>
-                    </div>
-                  </a>
-                )
-              }) : (
+              {albums.length ? albums.map(album => (
+                <AlbumCard key={album.$id} album={album} />
+              )) : (
                 <div className="no-results">
                   <div className="no-results-icon">🎞</div>
                   <h2>No albums found</h2>

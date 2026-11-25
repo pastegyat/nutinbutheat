@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&display=swap');
 
-:root { font-family: 'DM Sans', sans-serif; color: #201c18; background: #f6f2ea; font-synthesis: none; text-rendering: optimizeLegibility; }
+:root { font-family: 'DM Sans', sans-serif; color: #ffffff; background: #f6f2ea; font-synthesis: none; text-rendering: optimizeLegibility; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; }
@@ -11,3 +11,27 @@ button, input { font: inherit; }
 @media(max-width:900px){.logo-img{width:150px}}
 @media(max-width:580px){.logo-img{width:120px}}
 @media(max-width:360px){.logo-img{width:100px}}
+
+/* Halloween floating pumpkin (renders only Oct 1 – Nov 1 via App.tsx date check).
+   Hangs just under the sticky nav; floats up behind it (nav is opaque + higher
+   z-index) and drifts back down. */
+.halloween-pumpkin {
+  position: fixed;
+  top: 64px;
+  right: 24px;
+  z-index: 5;
+  width: 90px;
+  animation: pumpkinFloat 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pumpkinFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-18px);
+  }
+}
+
+@media(max-width:620px){.halloween-pumpkin{top:56px;right:10px;width:64px}}

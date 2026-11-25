@@ -39,6 +39,9 @@
 .mosaic-single{width:100%;height:100%;object-fit:cover;object-position:top center;display:block;transition:transform .4s ease}
 .album-card:hover .mosaic-single{transform:scale(1.05)}
 .mosaic-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;background:linear-gradient(135deg,#1a1f2e,#2a3441)}
+@keyframes slideFade{from{opacity:.35}to{opacity:1}}
+.mosaic-single.slide-fade{animation:slideFade .35s ease}
+.slide-count{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.75);color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;backdrop-filter:blur(6px);pointer-events:none}
 .album-mosaic-overlay{position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,.55) 0%, transparent 35%);display:flex;align-items:flex-end;padding:12px;gap:6px;pointer-events:none}
 .count-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(0,0,0,.75);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;backdrop-filter:blur(6px)}
 .prem-badge{background:linear-gradient(135deg,#f7a800,#ff6b00);color:#fff;font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;position:absolute;top:10px;right:10px;box-shadow:0 2px 8px rgba(0,0,0,.4)}

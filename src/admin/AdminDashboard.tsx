@@ -6,6 +6,8 @@ import AdminGate from './AdminGate'
 import { getAdminToken, clearAdminToken } from './auth'
 import PostForm from './PostForm'
 import ManagePosts from './ManagePosts'
+import { ContactInbox, ReportsInbox } from './Inbox'
+import PasteManager from './PasteManager'
 import AddAlbum from './AddAlbum'
 import ManageAlbums from './ManageAlbums'
 import { getAdminStats, type AdminStats } from '../lib/appwrite'
@@ -13,7 +15,7 @@ import { fmtNumber, timeAgo } from '../lib/format'
 
 const avgTime = (ms: number | null) => { if (ms === null || ms === undefined) return '–'; const s = Math.round(ms / 1000); if (s >= 60) return `${Math.floor(s / 60)}m ${s % 60}s`; return `${s}s` }
 
-type View = 'dashboard' | 'add' | 'manage' | 'add-album' | 'manage-albums' | { kind: 'soon'; label: string; desc: string }
+type View = 'dashboard' | 'add' | 'manage' | 'add-album' | 'manage-albums' | 'reports' | 'contact' | 'paste' | { kind: 'soon'; label: string; desc: string }
 
 const soon = (label: string, desc: string): View => ({ kind: 'soon', label, desc })
 const NavItem = ({ icon, label, badge, active, onClick }: { icon: ReactNode; label: string; badge?: string; active?: boolean; onClick: () => void }) => (
@@ -41,17 +43,30 @@ export default function AdminDashboard() {
   const [loadError, setLoadError] = useState('')
   const [reload, setReload] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null)
+  const [christmasMode, setChristmasMode] = useState(() => localStorage.getItem('nbh_christmas_mode') === 'true')
   const chartRef = useRef<HTMLCanvasElement>(null); const chartInstance = useRef<Chart | null>(null)
 
   const handleAuthError = () => { clearAdminToken(); setAuthed(false); setNotice('Session expired. Please sign in again.') }
   const logout = () => { clearAdminToken(); setAuthed(false); setNotice(''); setStats(null); setLoadError(''); setView('dashboard') }
+  const toggleChristmas = () => { const next = !christmasMode; setChristmasMode(next); localStorage.setItem('nbh_christmas_mode', String(next)) }
 
   useEffect(() => {
     if (!authed || view !== 'dashboard') return
     let cancelled = false
-    ;(async () => { const { status, data } = await getAdminStats(getAdminToken()); if (cancelled) return; if (status === 401) { handleAuthError(); return } if (data) { setStats(data); setLoadError('') } else { setLoadError('Could not load stats. Check the Worker and try again.') } })()
+    ;(async () => { const { status, data } = await getAdminStats(getAdminToken()); if (cancelled) return; if (status === 401) { handleAuthError(); return } if (data) { setStats(data); setLoadError(''); setUpdatedAt(Date.now()) } else { setLoadError('Could not load stats. Check the Worker and try again.') } })()
     return () => { cancelled = true }
   }, [authed, view, reload])
+
+  // Live stats: refetch every 30s while the dashboard is visible + when the tab
+  // regains focus, so Top Pages / Pageviews Today / traffic move without reload.
+  useEffect(() => {
+    if (!authed || view !== 'dashboard') return
+    const t = setInterval(() => setReload(r => r + 1), 30000)
+    const onFocus = () => setReload(r => r + 1)
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(t); window.removeEventListener('focus', onFocus) }
+  }, [authed, view])
 
   useEffect(() => {
     if (!chartRef.current || !stats?.traffic.length) return
@@ -73,16 +88,17 @@ export default function AdminDashboard() {
     <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
       <div className="sidebar-logo"><span className="brand-text">NUTIN<span>BUT</span>HEAT</span><span className="brand-sub">Admin Panel</span></div>
       <div className="sidebar-section"><div className="sidebar-section-label">Overview</div><NavItem icon={iconGrid} label="Dashboard" active={view === 'dashboard'} onClick={() => setView('dashboard')} /></div>
-      <div className="sidebar-section"><div className="sidebar-section-label">Posts</div><NavItem icon={iconPlus} label="Add Post" active={view === 'add'} onClick={() => setView('add')} /><NavItem icon={iconDoc} label="Manage Posts" active={view === 'manage'} badge={fmtNumber(t?.posts)} onClick={() => setView('manage')} /></div>
+      <div className="sidebar-section"><div className="sidebar-section-label">Posts</div><NavItem icon={iconPlus} label="Add Post" active={view === 'add'} onClick={() => setView('add')} /><NavItem icon={iconDoc} label="Manage Posts" active={view === 'manage'} badge={fmtNumber(t?.posts)} onClick={() => setView('manage')} /><NavItem icon={iconDoc} label="Text Pastes" active={view === 'paste'} onClick={() => setView('paste')} /></div>
       <div className="sidebar-section"><div className="sidebar-section-label">Videos</div><NavItem icon={iconPlus} label="Upload Video" onClick={() => setView(soon('Upload Video', 'Video uploads are coming soon.'))} /><NavItem icon={iconVideo} label="Manage Videos" onClick={() => setView(soon('Manage Videos', 'Video management is coming soon.'))} /></div>
       <div className="sidebar-section"><div className="sidebar-section-label">Albums</div><NavItem icon={iconPlus} label="Add Album" active={view === 'add-album'} onClick={() => setView('add-album')} /><NavItem icon={iconDoc} label="Manage albums" active={view === 'manage-albums'} onClick={() => setView('manage-albums')} /><NavItem icon={iconEye} label="Album Views" onClick={() => setView(soon('Album Views', 'Album analytics are coming soon.'))} /></div>
-      <div className="sidebar-section"><NavItem icon={iconUser} label="Contact" onClick={() => setView(soon('Contact', 'Contact submissions are coming soon.'))} /><NavItem icon={iconReport} label="Reports" onClick={() => setView(soon('Reports', 'Reported content is coming soon.'))} /></div>
+      <div className="sidebar-section"><div className="sidebar-section-label">Settings</div><button className={`nav-item${christmasMode ? ' active' : ''}`} onClick={toggleChristmas} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 0, color: christmasMode ? '#fff' : '#b8c5d6', padding: '14px 0', fontSize: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>{christmasMode ? '🎄' : '❄️'} Christmas Mode<span style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.7 }}>{christmasMode ? 'On' : 'Off'}</span></button></div>
+      <div className="sidebar-section"><NavItem icon={iconUser} label="Contact" active={view === 'contact'} onClick={() => setView('contact')} /><NavItem icon={iconReport} label="Reports" active={view === 'reports'} onClick={() => setView('reports')} /></div>
       <div className="sidebar-footer"><NavItem icon={iconHome} label="View Site" onClick={() => window.open(window.location.origin, '_blank')} /><a className="logout-btn" onClick={logout}>{iconLogout}Log Out</a></div>
     </aside>
 
     <div className="main">
       <div className="topbar">
-        <div className="topbar-left"><button className="hamburger-btn" onClick={() => setMenuOpen(true)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg></button><span className="topbar-title">{view === 'dashboard' ? 'Dashboard' : view === 'add' ? 'Add Post' : view === 'manage' ? 'Manage Posts' : view === 'add-album' ? 'Add Album' : view === 'manage-albums' ? 'Manage Albums' : (view as { label: string }).label}</span></div>
+        <div className="topbar-left"><button className="hamburger-btn" onClick={() => setMenuOpen(true)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg></button><span className="topbar-title">{view === 'dashboard' ? 'Dashboard' : view === 'add' ? 'Add Post' : view === 'manage' ? 'Manage Posts' : view === 'add-album' ? 'Add Album' : view === 'manage-albums' ? 'Manage Albums' : view === 'reports' ? 'Reports' : view === 'contact' ? 'Contact' : view === 'paste' ? 'Text Pastes' : (view as { label: string }).label}</span></div>
         <div className="topbar-right"><a className="view-site-btn" href="/" target="_blank" rel="noopener noreferrer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>View Site</a></div>
       </div>
 
@@ -90,10 +106,13 @@ export default function AdminDashboard() {
         : view === 'add-album' ? <div className="page-content"><div className="page-heading">Create Album</div><div className="page-sub">Albums appear at /albums and /a/{'{slug}'}.</div><div className="admin admin-form"><AddAlbum onAuthError={handleAuthError} onSaved={() => { setStats(null); setLoadError(''); setReload(r => r + 1) }} /></div></div>
         : view === 'manage' ? <ManagePosts onAuthError={handleAuthError} onChanged={() => { setStats(null); setLoadError(''); setReload(r => r + 1) }} />
         : view === 'manage-albums' ? <ManageAlbums onAuthError={handleAuthError} onChanged={() => { setStats(null); setLoadError(''); setReload(r => r + 1) }} />
+        : view === 'reports' ? <ReportsInbox onAuthError={handleAuthError} />
+        : view === 'contact' ? <ContactInbox onAuthError={handleAuthError} />
+        : view === 'paste' ? <PasteManager onAuthError={handleAuthError} />
           : view !== 'dashboard' ? <div className="page-content"><div className="page-heading">{view.label}</div><div className="page-sub">{view.desc}</div><div className="table-card"><div className="empty-state">This module isn't wired up yet.</div></div><button className="back-btn" onClick={() => setView('dashboard')}>← Back to Dashboard</button></div>
           : <div className="page-content">
               <div className="page-heading">Welcome back 👋</div>
-              <div className="page-sub">Here's what's happening on NutinButHeat today.</div>
+              <div className="page-sub">Here's what's happening on NutinButHeat today. <button className="back-btn" style={{ marginLeft: 8 }} onClick={() => setReload(r => r + 1)}>↻ Refresh now</button>{updatedAt && <span style={{ marginLeft: 8, fontSize: 12, color: '#6b7684' }}>Updated {Math.max(0, Math.round((Date.now() - updatedAt) / 1000))}s ago · auto-refreshes every 30s</span>}</div>
               {!stats && !loadError ? <div className="table-card"><div className="empty-state">Loading stats…</div></div>
                 : loadError ? <div className="table-card"><div className="empty-state">{loadError}</div></div>
                   : stats && t && <>
@@ -105,7 +124,7 @@ export default function AdminDashboard() {
                       <StatCard icon={iconDoc} tone="gray" value={fmtNumber(t.privateCount)} label="Private Posts" />
                       <StatCard icon={iconEye} tone="purple" value={fmtNumber(t.postViews)} label="Total Post Views" />
                       <StatCard icon={iconVideo} tone="purple" value="–" label="Total Video Views" />
-                      <StatCard icon={iconGrid} tone="pink" value="–" label="Total Album Views" />
+                      <StatCard icon={iconGrid} tone="pink" value={fmtNumber(stats.albumViewsTotal ?? 0)} label="Total Album Views" />
                       <StatCard icon={iconReport} tone="blue" value={fmtNumber(stats.todayViews)} label="Pageviews Today" />
                       <StatCard icon={iconGrid} tone="green" value="–" label="Avg. Session Duration" />
                     </div>
@@ -120,14 +139,11 @@ export default function AdminDashboard() {
                       <div className="table-card"><div className="table-card-header"><span className="table-card-title">Recent Posts</span></div>{stats.recentPosts.length ? <table><thead><tr><th>Title</th><th>Views</th><th>Link Clicks</th><th>Added</th></tr></thead><tbody>{stats.recentPosts.map(p => <tr key={p.title}><td className="td-title">{p.title}</td><td className="td-views">🔥 {fmtNumber(p.views)}</td><td className="td-views">🔗 {fmtNumber(p.link_clicks)}</td><td className="td-time">{timeAgo(p.created_at)}</td></tr>)}</tbody></table> : <div className="empty-state">No posts yet</div>}</div>
                       <div className="table-card"><div className="table-card-header"><span className="table-card-title">Recent Videos</span></div><div className="empty-state">No videos yet</div></div>
                     </div>
-                    <div className="table-card full" style={{ marginBottom: 32 }}><div className="table-card-header"><span className="table-card-title">Recent Albums</span></div><div className="empty-state">No albums yet</div></div>
+                    <div className="table-card full" style={{ marginBottom: 32 }}><div className="table-card-header"><span className="table-card-title">Recent Albums</span></div>{(stats.recentAlbums ?? []).length ? <table><thead><tr><th>Album</th><th>Views</th><th>Added</th></tr></thead><tbody>{(stats.recentAlbums ?? []).map(a => <tr key={a.slug}><td className="td-title"><a href={`/a/${a.slug}`} target="_blank" rel="noopener noreferrer">{a.title}</a></td><td className="td-views">👁 {fmtNumber(a.views)}</td><td className="td-time">{timeAgo(a.created_at)}</td></tr>)}</tbody></table> : <div className="empty-state">No albums yet</div>}</div>
                     <div className="section-title">Traffic — Last 14 Days</div>
                     <div className="table-card chart-card"><canvas ref={chartRef} height="90" /></div>
                     <div className="table-card"><div className="table-card-header"><span className="table-card-title">Most Clicked Posts</span><span className="table-card-note">All time</span></div>{stats.topClicked.length ? <table><thead><tr><th>Post</th><th>Link Clicks</th></tr></thead><tbody>{stats.topClicked.map(p => <tr key={p.slug}><td className="td-title"><a href={`/${p.slug}`} target="_blank" rel="noopener noreferrer">{p.title}</a></td><td className="td-views">🔗 {fmtNumber(p.link_clicks)}</td></tr>)}</tbody></table> : <div className="empty-state">No link clicks yet</div>}</div>
-                    <div className="two-col">
-                      <div className="table-card"><div className="table-card-header"><span className="table-card-title">Top Pages</span><span className="table-card-note">Last 30 days</span></div>{stats.topPages.length ? <table><thead><tr><th>Page</th><th>Visits</th><th>Avg Time</th></tr></thead><tbody>{stats.topPages.map(item => <tr key={item.path}><td className="td-title">{item.path}</td><td className="td-views">{fmtNumber(item.visits)}</td><td className="td-time">{avgTime(item.avgDuration)}</td></tr>)}</tbody></table> : <div className="empty-state">No data yet</div>}</div>
-                      <div className="table-card"><div className="table-card-header"><span className="table-card-title">Top Searches</span><span className="table-card-note">Last 30 days</span></div>{stats.topSearches.length ? <table><thead><tr><th>Search Term</th><th>Count</th></tr></thead><tbody>{stats.topSearches.map(item => <tr key={item.term}><td className="td-title">{item.term}</td><td className="td-views">{fmtNumber(item.count)}</td></tr>)}</tbody></table> : <div className="empty-state">No data yet</div>}</div>
-                    </div>
+                    <div className="table-card"><div className="table-card-header"><span className="table-card-title">Top Pages</span><span className="table-card-note">All time · live counters</span></div>{stats.topPages.length ? <table><thead><tr><th>Page</th><th>Visits</th><th>Avg Time</th></tr></thead><tbody>{stats.topPages.map(item => <tr key={item.path}><td className="td-title">{item.path}</td><td className="td-views">{fmtNumber(item.visits)}</td><td className="td-time">{avgTime(item.avgDuration)}</td></tr>)}</tbody></table> : <div className="empty-state">No data yet</div>}</div>
                   </>}
             </div>}
     </div>
