@@ -16,10 +16,11 @@
 @media(max-width:600px){.x-link{width:28px;height:28px}.x-link svg{width:12px;height:12px}}
 
 /* Christmas theme */
-.santa-hat{position:absolute;top:-8px;left:50%;transform:translateX(-50%);z-index:3;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4))}
+.santa-hat{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:58px;z-index:3;mix-blend-mode:screen;pointer-events:none}
 .hamburger{position:relative}
-.snow-container{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-.snowflake{position:fixed;background:#fff;border-radius:50%;top:-10px;animation:fall linear infinite}
-@keyframes fall{to{transform:translateY(100vh) translateX(20px)}}
+#snowfall{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:999999}
+.snowflake{position:absolute;top:-30px;color:#fff;opacity:.85;user-select:none;text-shadow:0 0 5px rgba(255,255,255,.6);animation:snowfall linear infinite}
+@keyframes snowfall{0%{transform:translate3d(0,-30px,0) rotate(0deg)}100%{transform:translate3d(50px,110vh,0) rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){#snowfall{display:none}}
 .card.christmas{border:2px solid #dc2626;box-shadow:0 0 14px rgba(220,38,38,0.35),0 0 4px rgba(255,255,255,0.1)}
 .card.christmas::before{content:'';position:absolute;top:-2px;left:-2px;right:-2px;height:4px;background:repeating-linear-gradient(90deg,#fff,#fff 8px,#dc2626 8px,#dc2626 16px);z-index:1}

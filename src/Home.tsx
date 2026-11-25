@@ -46,23 +46,24 @@ export default function Home() {
   // Falling snowflakes when Christmas mode is on.
   useEffect(() => {
     if (!christmasMode) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const container = document.createElement('div')
-    container.className = 'snow-container'
+    container.id = 'snowfall'
     document.body.appendChild(container)
-    const createFlake = () => {
-      const flake = document.createElement('div')
-      flake.className = 'snowflake'
-      flake.style.left = Math.random() * 100 + 'vw'
-      flake.style.width = Math.random() * 6 + 4 + 'px'
-      flake.style.height = flake.style.width
-      flake.style.animationDuration = (Math.random() * 3 + 2) + 's'
-      flake.style.animationDelay = Math.random() * 5 + 's'
-      flake.style.opacity = String(Math.random() * 0.7 + 0.3)
-      container.appendChild(flake)
-      setTimeout(() => flake.remove(), 8000)
+    const symbols = ['❄', '❅', '❆', '•']
+    for (let i = 0; i < 65; i++) {
+      const snow = document.createElement('span')
+      snow.className = 'snowflake'
+      snow.textContent = symbols[Math.floor(Math.random() * symbols.length)]
+      const size = 8 + Math.random() * 15
+      const duration = 7 + Math.random() * 12
+      snow.style.left = Math.random() * 100 + 'vw'
+      snow.style.fontSize = size + 'px'
+      snow.style.animationDuration = duration + 's'
+      snow.style.animationDelay = -(Math.random() * duration) + 's'
+      container.appendChild(snow)
     }
-    const iv = setInterval(createFlake, 120)
-    return () => { clearInterval(iv); container.remove() }
+    return () => { container.remove() }
   }, [christmasMode])
 
   // Scroll-pass view counting: each card scrolled into view = +1 view (batched).
@@ -97,7 +98,7 @@ export default function Home() {
   const gotoPage = (p: number) => (e: React.MouseEvent<HTMLAnchorElement>) => { linkTo(`?page=${p}`)(e); window.scrollTo({ top: 0 }) }
   const retry = () => { setError(null); setLoading(true); clearPublicPostsCache(); setCounts({}); setPosts([]); (async () => { try { const [list, countsAll] = await Promise.all([getPublicPosts(), getReactionCountsAll()]); setPosts(list); setCounts(countsAll); setError(null); } catch { setError('Failed to load posts. Try again.'); } setLoading(false) })(); }
   return <div className="nbh">
-    <header><div className="bar"><button className={`hamburger ${menu ? 'open' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation">{christmasMode && <svg className="santa-hat" viewBox="0 0 24 24" width="26" height="26"><path d="M4 18c0-6 6-10 8-10s8 4 8 10c0 2-2 4-6 4s-6-2-6-4z" fill="#dc2626"/><path d="M4 16c0-2 6-4 8-4s8 2 8 4l0 4c-4 0-8-2-8-4z" fill="#fff"/><circle cx="8" cy="0" r="2" fill="#fff"/></svg>}<i /><i /><i /></button><a className="logo" href="/" onClick={linkTo('/')}><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a><label className="search"><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search content..." aria-label="Search content" /><b>⌕</b></label></div></header>
+    <header><div className="bar"><button className={`hamburger ${menu ? 'open' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation">{christmasMode && <img className="santa-hat" src="/santa-hat.png" alt="" />}<i /><i /><i /></button><a className="logo" href="/" onClick={linkTo('/')}><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a><label className="search"><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search content..." aria-label="Search content" /><b>⌕</b></label></div></header>
     <aside className={`drawer ${menu ? 'show' : ''}`}>{navItems.map(x => <a key={x.label} href={x.path} onClick={e => { linkTo(x.path)(e as unknown as React.MouseEvent<HTMLAnchorElement>); setMenu(false) }}>{x.label}{x.badge && <small>NEW</small>}</a>)}</aside><button className={`shade ${menu ? 'show' : ''}`} onClick={() => setMenu(false)} aria-label="Close navigation" />
     <main id="top"><section className="intro"><p>Fresh Drops</p><h1>What&apos;s <em>Hot</em> Right Now</h1><span>The freshest exclusive content — dropping daily.</span></section><div className="rule" />
     <section id="content" className="feed">{loading ? <p className="none">Loading drops…</p> : error ? <div className="none"><p>{error}</p><button onClick={retry}>Try again</button></div> : visible.length ? <>
