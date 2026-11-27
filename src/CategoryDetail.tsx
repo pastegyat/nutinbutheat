@@ -1,3 +1,4 @@
+import { ChristmasHat } from './ChristmasEffects'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import './CategoryDetail.css'
 import './Home.css'
@@ -63,7 +64,7 @@ export default function CategoryDetail({ category }: { category: string }) {
 
 
   return <div className="category-page">
-    <header><div className="bar"><button className={`hamburger ${menu ? 'open' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><i /><i /><i /></button><a className="logo" href="/" onClick={linkTo('/')}><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a><label className="search"><input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={`Search in ${category}...`} aria-label={`Search in ${category}`} /><b>⌕</b></label></div></header>
+    <header><div className="bar"><button className={`hamburger ${menu ? 'open' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><ChristmasHat /><i /><i /><i /></button><a className="logo" href="/" onClick={linkTo('/')}><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a><label className="search"><input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={`Search in ${category}...`} aria-label={`Search in ${category}`} /><b>⌕</b></label></div></header>
 
     <div className={`slide-menu ${menu ? 'active' : ''}`}>
       <div className="menu-content">
@@ -117,4 +118,5 @@ export default function CategoryDetail({ category }: { category: string }) {
     )}
   </div>
 }
+
 

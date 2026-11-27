@@ -1,3 +1,4 @@
+import { ChristmasHat } from './ChristmasEffects'
 import { useEffect, useState } from 'react'
 import './Albums.css'
 import AlbumCard from './AlbumCard'
@@ -66,7 +67,7 @@ export default function Albums() {
       <header className="header">
         <div className="header-container">
           <div className="left-section">
-            <button className={`hamburger ${menu ? 'active' : ''}`} id="hamburger" onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><span /><span /><span /></button>
+            <button className={`hamburger ${menu ? 'active' : ''}`} id="hamburger" onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><ChristmasHat /><span /><span /><span /></button>
             <a href="/" onClick={linkTo('/')} className="logo-link"><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a>
           </div>
           <div className="search-wrap">
@@ -138,5 +139,6 @@ export default function Albums() {
     </div>
   )
 }
+
 
 

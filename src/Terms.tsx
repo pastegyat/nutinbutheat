@@ -1,3 +1,4 @@
+import { ChristmasHat } from './ChristmasEffects'
 import { useEffect, useState } from 'react'
 import './Terms.css'
 import { linkTo, navigate } from './lib/router'
@@ -28,7 +29,7 @@ export default function Terms() {
     <header className="header">
       <div className="header-container">
         <div className="left-section">
-          <button className={`hamburger ${menu ? 'active' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><span /><span /><span /></button>
+          <button className={`hamburger ${menu ? 'active' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><ChristmasHat /><span /><span /><span /></button>
           <a href="/" onClick={linkTo('/')} className="logo-link"><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a>
         </div>
         <div className="search-container">
@@ -167,5 +168,6 @@ export default function Terms() {
     </div>
   </div>
 }
+
 
 

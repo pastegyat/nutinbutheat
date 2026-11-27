@@ -1,3 +1,4 @@
+import { ChristmasHat } from './ChristmasEffects'
 import { useEffect, useState, type ReactNode } from 'react'
 import './AlbumDetail.css'
 import { getAlbumBySlug } from './lib/appwrite'
@@ -85,7 +86,7 @@ export default function AlbumDetail({ slug }: { slug: string }) {
       <header className="header">
         <div className="header-container">
           <div className="left-section">
-            <button className={`hamburger ${menu ? 'active' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><span /><span /><span /></button>
+            <button className={`hamburger ${menu ? 'active' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><ChristmasHat /><span /><span /><span /></button>
             <a href="/" onClick={linkTo('/')} className="logo-link"><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a>
           </div>
         </div>
@@ -198,5 +199,6 @@ export default function AlbumDetail({ slug }: { slug: string }) {
     </div>
   )
 }
+
 
 

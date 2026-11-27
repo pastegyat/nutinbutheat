@@ -5,6 +5,7 @@ import { getReactionCountsAll, getPublicPosts, toggleReaction, trackPageView, tr
 import { timeAgo } from './lib/format'
 import { linkTo } from './lib/router'
 import { ThumbDown, ThumbUp } from './lib/icons'
+import { ChristmasHat } from './ChristmasEffects'
 
 const navItems: Array<{ label: string; path: string; badge?: boolean }> = [
   { label: 'Home', path: '/' },
@@ -22,7 +23,7 @@ const PER_PAGE = 100
 function getPage() { const n = parseInt(new URLSearchParams(window.location.search).get('page') ?? '1', 10); return Number.isFinite(n) && n > 0 ? n : 1 }
 
 export default function Home() {
-  const [menu, setMenu] = useState(false); const [query, setQuery] = useState(''); const [posts, setPosts] = useState<Post[]>([]); const [counts, setCounts] = useState<Record<string, ReactionCounts>>({}); const [votes, setVotes] = useState<Record<string, 'like' | 'dislike' | undefined>>({}); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [christmasMode, setChristmasMode] = useState(() => localStorage.getItem('nbh_christmas_mode') === 'true')
+  const [menu, setMenu] = useState(false); const [query, setQuery] = useState(''); const [posts, setPosts] = useState<Post[]>([]); const [counts, setCounts] = useState<Record<string, ReactionCounts>>({}); const [votes, setVotes] = useState<Record<string, 'like' | 'dislike' | undefined>>({}); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [christmasMode, setChristmasMode] = useState(() => localStorage.getItem('nbh_christmas_mode') !== 'false')
   const [page, setPage] = useState(() => getPage())
 
   useEffect(() => {
@@ -42,29 +43,6 @@ export default function Home() {
     return () => clearTimeout(t)
   }, [query])
   useEffect(() => { const term = query.trim(); if (!term) return; const t = setTimeout(() => trackPageView(location.pathname + location.search, term), 600); return () => clearTimeout(t) }, [query])
-
-  // Falling snowflakes when Christmas mode is on.
-  useEffect(() => {
-    if (!christmasMode) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const container = document.createElement('div')
-    container.id = 'snowfall'
-    document.body.appendChild(container)
-    const symbols = ['❄', '❅', '❆', '•']
-    for (let i = 0; i < 65; i++) {
-      const snow = document.createElement('span')
-      snow.className = 'snowflake'
-      snow.textContent = symbols[Math.floor(Math.random() * symbols.length)]
-      const size = 8 + Math.random() * 15
-      const duration = 7 + Math.random() * 12
-      snow.style.left = Math.random() * 100 + 'vw'
-      snow.style.fontSize = size + 'px'
-      snow.style.animationDuration = duration + 's'
-      snow.style.animationDelay = -(Math.random() * duration) + 's'
-      container.appendChild(snow)
-    }
-    return () => { container.remove() }
-  }, [christmasMode])
 
   // Scroll-pass view counting: each card scrolled into view = +1 view (batched).
   const gridRef = useRef<HTMLDivElement>(null)
@@ -98,9 +76,9 @@ export default function Home() {
   const gotoPage = (p: number) => (e: React.MouseEvent<HTMLAnchorElement>) => { linkTo(`?page=${p}`)(e); window.scrollTo({ top: 0 }) }
   const retry = () => { setError(null); setLoading(true); clearPublicPostsCache(); setCounts({}); setPosts([]); (async () => { try { const [list, countsAll] = await Promise.all([getPublicPosts(), getReactionCountsAll()]); setPosts(list); setCounts(countsAll); setError(null); } catch { setError('Failed to load posts. Try again.'); } setLoading(false) })(); }
   return <div className="nbh">
-    <header><div className="bar"><button className={`hamburger ${menu ? 'open' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation">{christmasMode && <img className="santa-hat" src="/santa-hat.png" alt="" />}<i /><i /><i /></button><a className="logo" href="/" onClick={linkTo('/')}><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a><label className="search"><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search content..." aria-label="Search content" /><b>⌕</b></label></div></header>
+    <header><div className="bar"><button className={`hamburger ${menu ? 'open' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><ChristmasHat /><i /><i /><i /></button><a className="logo" href="/" onClick={linkTo('/')}><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a><label className="search"><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search content..." aria-label="Search content" /><b>⌕</b></label></div></header>
     <aside className={`drawer ${menu ? 'show' : ''}`}>{navItems.map(x => <a key={x.label} href={x.path} onClick={e => { linkTo(x.path)(e as unknown as React.MouseEvent<HTMLAnchorElement>); setMenu(false) }}>{x.label}{x.badge && <small>NEW</small>}</a>)}</aside><button className={`shade ${menu ? 'show' : ''}`} onClick={() => setMenu(false)} aria-label="Close navigation" />
-    <main id="top"><section className="intro"><p>Fresh Drops</p><h1>What&apos;s <em>Hot</em> Right Now</h1><span>The freshest exclusive content — dropping daily.</span></section><div className="rule" />
+    <main id="top"><section className={`intro ${christmasMode ? 'intro-christmas' : ''}`}><div className="hero-garland" aria-hidden="true"><span>✦</span><span>●</span><span>✦</span><span>●</span><span>✦</span><span>●</span><span>✦</span></div><p>Fresh Drops</p><h1>What&apos;s <em>Hot</em> Right Now</h1><span>The freshest exclusive content — dropping daily.</span><div className="hero-holly hero-holly-left" aria-hidden="true">❧</div><div className="hero-holly hero-holly-right" aria-hidden="true">❧</div></section><div className="rule" />
     <section id="content" className="feed">{loading ? <p className="none">Loading drops…</p> : error ? <div className="none"><p>{error}</p><button onClick={retry}>Try again</button></div> : visible.length ? <>
       <div className="grid" ref={gridRef}>{visible.map(post => renderCard(post))}</div>
       {totalPages > 1 && <div className="pagination">
@@ -111,3 +89,4 @@ export default function Home() {
     </> : <p className="none">No items found for “{query}”.</p>}</section></main>
   </div>
 }
+

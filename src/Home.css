@@ -16,11 +16,20 @@
 @media(max-width:600px){.x-link{width:28px;height:28px}.x-link svg{width:12px;height:12px}}
 
 /* Christmas theme */
-.santa-hat{position:absolute;top:-14px;left:50%;transform:translateX(-50%);width:58px;z-index:3;mix-blend-mode:screen;pointer-events:none}
-.hamburger{position:relative}
+.hamburger,.detail-hamburger{position:relative;isolation:isolate}
+.santa-hat{position:absolute;top:-7px;left:-4px;width:38px;height:auto;z-index:1;pointer-events:none}
+.intro-christmas{position:relative;isolation:isolate;overflow:hidden;padding-top:44px;padding-bottom:24px;background:radial-gradient(ellipse at 50% 0%,rgba(22,101,52,.16),transparent 66%)}
+.hero-garland{position:absolute;top:0;left:50%;width:min(680px,82%);height:32px;transform:translateX(-50%);display:flex;justify-content:space-around;align-items:flex-start;border-top:2px solid #287447;border-radius:50% 50% 0 0;pointer-events:none;color:#f5d76e}
+.hero-garland span{position:relative;top:5px;font-size:11px;text-shadow:0 0 10px currentColor}
+.hero-garland span:nth-child(2n){color:#dc4545;font-size:8px;top:12px}
+.hero-holly{position:absolute;bottom:4px;color:#39834b;font-size:30px;opacity:.7;pointer-events:none}
+.hero-holly-left{left:clamp(14px,8vw,120px);transform:rotate(-35deg)}
+.hero-holly-right{right:clamp(14px,8vw,120px);transform:scaleX(-1) rotate(-35deg)}
 #snowfall{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:999999}
 .snowflake{position:absolute;top:-30px;color:#fff;opacity:.85;user-select:none;text-shadow:0 0 5px rgba(255,255,255,.6);animation:snowfall linear infinite}
 @keyframes snowfall{0%{transform:translate3d(0,-30px,0) rotate(0deg)}100%{transform:translate3d(50px,110vh,0) rotate(360deg)}}
+@keyframes snowfallSettle{to{transform:translate3d(var(--settle-x),var(--settle-y),0) rotate(45deg);opacity:0}}
 @media(prefers-reduced-motion:reduce){#snowfall{display:none}}
+@media(max-width:600px){.intro-christmas{padding-top:34px}.hero-garland{width:88%;height:25px}.hero-garland span{font-size:9px}.hero-holly{font-size:22px;bottom:1px}}
 .card.christmas{border:2px solid #dc2626;box-shadow:0 0 14px rgba(220,38,38,0.35),0 0 4px rgba(255,255,255,0.1)}
 .card.christmas::before{content:'';position:absolute;top:-2px;left:-2px;right:-2px;height:4px;background:repeating-linear-gradient(90deg,#fff,#fff 8px,#dc2626 8px,#dc2626 16px);z-index:1}

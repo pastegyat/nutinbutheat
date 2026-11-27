@@ -1,3 +1,4 @@
+import { ChristmasHat } from './ChristmasEffects'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import './Home.css'
 import './Trending.css'
@@ -51,7 +52,7 @@ export default function Trending() {
   }, [visibleCount, posts.length])
 
   return <div className="nbh trending-page">
-    <header><div className="bar"><button className={`hamburger ${menu ? 'open' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><i /><i /><i /></button><a className="logo" href="/" onClick={linkTo('/')}><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a></div></header>
+    <header><div className="bar"><button className={`hamburger ${menu ? 'open' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><ChristmasHat /><i /><i /><i /></button><a className="logo" href="/" onClick={linkTo('/')}><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a></div></header>
     <aside className={`drawer ${menu ? 'show' : ''}`}>{navItems.map(x => <a key={x.label} href={x.path} onClick={e => { linkTo(x.path)(e as unknown as React.MouseEvent<HTMLAnchorElement>); setMenu(false) }}>{x.label}{x.label === 'Albums' && <small>NEW</small>}</a>)}</aside><button className={`shade ${menu ? 'show' : ''}`} onClick={() => setMenu(false)} aria-label="Close navigation" />
     <main id="top">
       <section className="trending-intro"><p>Trending Now</p><h1>Most <em>Loved</em> Drops</h1><span>Ranked by likes + views — updated live.</span></section>
@@ -67,5 +68,6 @@ export default function Trending() {
     </main>
   </div>
 }
+
 
 
