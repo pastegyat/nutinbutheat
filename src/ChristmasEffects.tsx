@@ -15,7 +15,7 @@ export default function ChristmasEffects() {
     container.id = 'snowfall'
     document.body.appendChild(container)
     const symbols = ['❄', '❅', '❆', '•']
-    for (let i = 0; i < 65; i++) {
+    for (let i = 0; i < 40; i++) {
       const snow = document.createElement('span')
       snow.className = 'snowflake'
       snow.textContent = symbols[Math.floor(Math.random() * symbols.length)]
