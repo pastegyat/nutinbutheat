@@ -1,12 +1,15 @@
 import { useEffect } from 'react'
+import { useChristmasEnabled } from './lib/settings'
 
 export function ChristmasHat() {
-  const enabled = localStorage.getItem('nbh_christmas_mode') !== 'false'
+  const enabled = useChristmasEnabled()
   return enabled ? <img className="santa-hat" src="/santa-hat.png" alt="" aria-hidden="true" /> : null
 }
 
 export default function ChristmasEffects() {
+  const enabled = useChristmasEnabled()
   useEffect(() => {
+    if (!enabled) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const container = document.createElement('div')
     container.id = 'snowfall'
@@ -39,7 +42,7 @@ export default function ChristmasEffects() {
       window.setTimeout(() => container.remove(), 2_600)
     }, 10_000)
     return () => { window.clearTimeout(timer); container.remove() }
-  }, [])
+  }, [enabled])
 
   return null
 }

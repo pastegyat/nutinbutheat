@@ -6,6 +6,7 @@ import { timeAgo } from './lib/format'
 import { linkTo } from './lib/router'
 import { ThumbDown, ThumbUp } from './lib/icons'
 import { ChristmasHat } from './ChristmasEffects'
+import { useChristmasEnabled } from './lib/settings'
 
 const navItems: Array<{ label: string; path: string; badge?: boolean }> = [
   { label: 'Home', path: '/' },
@@ -23,7 +24,7 @@ const PER_PAGE = 100
 function getPage() { const n = parseInt(new URLSearchParams(window.location.search).get('page') ?? '1', 10); return Number.isFinite(n) && n > 0 ? n : 1 }
 
 export default function Home() {
-  const [menu, setMenu] = useState(false); const [query, setQuery] = useState(''); const [posts, setPosts] = useState<Post[]>([]); const [counts, setCounts] = useState<Record<string, ReactionCounts>>({}); const [votes, setVotes] = useState<Record<string, 'like' | 'dislike' | undefined>>({}); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [christmasMode, setChristmasMode] = useState(() => localStorage.getItem('nbh_christmas_mode') !== 'false')
+  const [menu, setMenu] = useState(false); const [query, setQuery] = useState(''); const [posts, setPosts] = useState<Post[]>([]); const [counts, setCounts] = useState<Record<string, ReactionCounts>>({}); const [votes, setVotes] = useState<Record<string, 'like' | 'dislike' | undefined>>({}); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const christmasMode = useChristmasEnabled()
   const [page, setPage] = useState(() => getPage())
 
   useEffect(() => {
@@ -78,7 +79,7 @@ export default function Home() {
   return <div className="nbh">
     <header><div className="bar"><button className={`hamburger ${menu ? 'open' : ''}`} onClick={() => setMenu(!menu)} aria-label="Toggle navigation"><ChristmasHat /><i /><i /><i /></button><a className="logo" href="/" onClick={linkTo('/')}><img src="/logo3.png" alt="NutinButHeat" className="logo-img" /></a><label className="search"><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search content..." aria-label="Search content" /><b>⌕</b></label></div></header>
     <aside className={`drawer ${menu ? 'show' : ''}`}>{navItems.map(x => <a key={x.label} href={x.path} onClick={e => { linkTo(x.path)(e as unknown as React.MouseEvent<HTMLAnchorElement>); setMenu(false) }}>{x.label}{x.badge && <small>NEW</small>}</a>)}</aside><button className={`shade ${menu ? 'show' : ''}`} onClick={() => setMenu(false)} aria-label="Close navigation" />
-    <main id="top"><section className={`intro ${christmasMode ? 'intro-christmas' : ''}`}><div className="hero-garland" aria-hidden="true"><span>✦</span><span>●</span><span>✦</span><span>●</span><span>✦</span><span>●</span><span>✦</span></div><p>Fresh Drops</p><h1>What&apos;s <em>Hot</em> Right Now</h1><span>The freshest exclusive content — dropping daily.</span><div className="hero-holly hero-holly-left" aria-hidden="true">❧</div><div className="hero-holly hero-holly-right" aria-hidden="true">❧</div></section><div className="rule" />
+    <main id="top"><section className={`intro ${christmasMode ? 'intro-christmas' : ''}`}>{christmasMode && <div className="hero-garland" aria-hidden="true"><span>✦</span><span>●</span><span>✦</span><span>●</span><span>✦</span><span>●</span><span>✦</span></div>}<p>Fresh Drops</p><h1>What&apos;s <em>Hot</em> Right Now</h1><span>The freshest exclusive content — dropping daily.</span>{christmasMode && <div className="hero-holly hero-holly-left" aria-hidden="true">❧</div>}{christmasMode && <div className="hero-holly hero-holly-right" aria-hidden="true">❧</div>}</section><div className="rule" />
     <section id="content" className="feed">{loading ? <p className="none">Loading drops…</p> : error ? <div className="none"><p>{error}</p><button onClick={retry}>Try again</button></div> : visible.length ? <>
       <div className="grid" ref={gridRef}>{visible.map(post => renderCard(post))}</div>
       {totalPages > 1 && <div className="pagination">

@@ -11,6 +11,7 @@ import PasteManager from './PasteManager'
 import AddAlbum from './AddAlbum'
 import ManageAlbums from './ManageAlbums'
 import { getAdminStats, type AdminStats } from '../lib/appwrite'
+import { saveChristmasSetting, getChristmasEnabled } from '../lib/settings'
 import { fmtNumber, timeAgo } from '../lib/format'
 
 const avgTime = (ms: number | null) => { if (ms === null || ms === undefined) return '–'; const s = Math.round(ms / 1000); if (s >= 60) return `${Math.floor(s / 60)}m ${s % 60}s`; return `${s}s` }
@@ -44,12 +45,12 @@ export default function AdminDashboard() {
   const [reload, setReload] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [updatedAt, setUpdatedAt] = useState<number | null>(null)
-  const [christmasMode, setChristmasMode] = useState(() => localStorage.getItem('nbh_christmas_mode') === 'true')
+  const [christmasMode, setChristmasMode] = useState(() => getChristmasEnabled())
   const chartRef = useRef<HTMLCanvasElement>(null); const chartInstance = useRef<Chart | null>(null)
 
   const handleAuthError = () => { clearAdminToken(); setAuthed(false); setNotice('Session expired. Please sign in again.') }
   const logout = () => { clearAdminToken(); setAuthed(false); setNotice(''); setStats(null); setLoadError(''); setView('dashboard') }
-  const toggleChristmas = () => { const next = !christmasMode; setChristmasMode(next); localStorage.setItem('nbh_christmas_mode', String(next)) }
+  const toggleChristmas = async () => { const next = !christmasMode; setChristmasMode(next); const ok = await saveChristmasSetting(next); if (!ok) { setChristmasMode(!next); setNotice('Could not save Christmas Mode setting.') } else setNotice('') }
 
   useEffect(() => {
     if (!authed || view !== 'dashboard') return
@@ -101,6 +102,8 @@ export default function AdminDashboard() {
         <div className="topbar-left"><button className="hamburger-btn" onClick={() => setMenuOpen(true)}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg></button><span className="topbar-title">{view === 'dashboard' ? 'Dashboard' : view === 'add' ? 'Add Post' : view === 'manage' ? 'Manage Posts' : view === 'add-album' ? 'Add Album' : view === 'manage-albums' ? 'Manage Albums' : view === 'reports' ? 'Reports' : view === 'contact' ? 'Contact' : view === 'paste' ? 'Text Pastes' : (view as { label: string }).label}</span></div>
         <div className="topbar-right"><a className="view-site-btn" href="/" target="_blank" rel="noopener noreferrer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>View Site</a></div>
       </div>
+
+      {notice && <div className="manage-notice" style={{ margin: '16px 24px 0' }}>{notice}</div>}
 
       {view === 'add' ? <div className="page-content"><div className="page-heading">Publish a new drop</div><div className="page-sub">Create new content for the feed.</div><div className="admin admin-form"><PostForm onAuthError={handleAuthError} onSaved={() => { setStats(null); setLoadError(''); setReload(r => r + 1) }} /></div></div>
         : view === 'add-album' ? <div className="page-content"><div className="page-heading">Create Album</div><div className="page-sub">Albums appear at /albums and /a/{'{slug}'}.</div><div className="admin admin-form"><AddAlbum onAuthError={handleAuthError} onSaved={() => { setStats(null); setLoadError(''); setReload(r => r + 1) }} /></div></div>

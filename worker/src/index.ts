@@ -44,6 +44,25 @@ function r2KeyFromUrl(env: Env, url: string): string | null {
   return null
 }
 
+// Global site settings (Christmas mode) — one JSON object in R2 so the toggle
+// is shared by every visitor instead of living in each browser's localStorage.
+const SETTINGS_KEY = 'settings/site.json'
+type SiteSettings = { christmas: boolean }
+let settingsCache: { value: SiteSettings; expires: number } | null = null
+async function getSiteSettings(env: Env): Promise<SiteSettings> {
+  if (settingsCache && settingsCache.expires > Date.now()) return settingsCache.value
+  let value: SiteSettings = { christmas: true }
+  try {
+    const obj = await env.POST_IMAGES.get(SETTINGS_KEY)
+    if (obj) {
+      const parsed = await obj.json() as Partial<SiteSettings>
+      if (typeof parsed.christmas === 'boolean') value = { christmas: parsed.christmas }
+    }
+  } catch { /* unreadable/missing → defaults */ }
+  settingsCache = { value, expires: Date.now() + 30_000 }
+  return value
+}
+
 async function isAdmin(request: Request, env: Env) {
   const token = request.headers.get('X-Admin-Token'); if (!token) return { ok: false, reason: 'missing-token' }
   const ok = await verifyToken(env.ADMIN_TOKEN_SECRET, token); if (!ok) return { ok: false, reason: 'invalid-token' }
@@ -524,6 +543,21 @@ export default { async fetch(request: Request, env: Env, ctx: ExecutionContext):
     } catch (e) { xml += `<!-- albums catch: ${escHtml(String(e))} -->` }
     xml += '</urlset>'
     return new Response(xml, { headers: { 'Content-Type': 'application/xml;charset=UTF-8', 'Cache-Control': 'public, max-age=3600' } })
+  }
+  if (request.method === 'GET' && url.pathname === '/settings/christmas') {
+    const settings = await getSiteSettings(env)
+    return new Response(JSON.stringify({ enabled: settings.christmas }), { headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' } })
+  }
+  if (request.method === 'POST' && url.pathname === '/admin/settings/christmas') {
+    const admin = await isAdmin(request, env); if (!admin.ok) return json({ error: admin.reason ?? 'Unauthorized' }, 401)
+    const body = await request.json() as { enabled?: unknown }
+    if (typeof body.enabled !== 'boolean') return json({ error: 'enabled must be a boolean.' }, 400)
+    const value: SiteSettings = { christmas: body.enabled }
+    try {
+      await env.POST_IMAGES.put(SETTINGS_KEY, JSON.stringify(value), { httpMetadata: { contentType: 'application/json' } })
+    } catch { return json({ error: 'Failed to save setting.' }, 500) }
+    settingsCache = { value, expires: Date.now() + 30_000 }
+    return json({ ok: true, enabled: value.christmas })
   }
   if (request.method === 'GET' || request.method === 'HEAD') {
     const isAssetFile = /\.(js|css|png|jpe?g|webp|gif|svg|ico|txt|json|xml|woff2?|ttf|mp4|webm)$/i.test(url.pathname)
